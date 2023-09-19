@@ -75,12 +75,12 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
         ]
     in
     Cmd.(
-      of_list [ "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
+      of_list [ "-O3"; "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
       %% warnings %% includes )
   in
   let ldflags entry =
     Cmd.(
-      of_list [ "-z"; "stack-size=1073741824"; "--no-entry" ]
+      of_list [ "-z"; "stack-size=8388608"; "--no-entry" ]
       % ("--export=" ^ entry) )
   in
   let file_bc = Fpath.(file -+ ".bc") in
@@ -94,8 +94,7 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
   let* _ = OS.Cmd.run @@ wasm2wat file_wasm file_wat in
   file_wat
 
-let run_file _file _output =
-  Log.debug "      running ...@."
+let run_file _file _output = Log.debug "      running ...@."
 
 let main debug output includes files =
   Log.on_debug := debug;
@@ -105,7 +104,7 @@ let main debug output includes files =
     (fun file ->
       let* file = OS.File.must_exist (Fpath.v file) in
       let file_data = instrument_file file includes in
-      let tmp_file_path = Fpath.(output / "instrumented.c") in
+      let tmp_file_path = Fpath.(output // base file) in
       let* _ = OS.File.write tmp_file_path file_data in
       let wat_file_path = compile_file tmp_file_path ~includes in
       let* file_data = OS.File.read wat_file_path in

@@ -7,7 +7,7 @@ BIN=../../bin
 BUILD=../../_build
 
 # Optimizations
-OPT ?= -O0
+OPT ?= -O3
 
 # Incldues
 INCLUDES += -I$(LIB)
