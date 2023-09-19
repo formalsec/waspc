@@ -13,32 +13,6 @@ let pre_patterns : (Re2.t * string) array =
      ; ("void\\s+(assert|assume)\\(", "void old_\\1(")
     |]
 
-let post_patterns : (Re2.t * string) array =
-  Array.map
-    (fun (regex, template) -> (Re2.create_exn regex, template))
-    [| ("call \\$__WASP_(assert|assume)", "sym_\\1")
-     ; ("call \\$(assume_abort_if_not|assume_cycle_if_not|assume)", "sym_assume")
-     ; ("call \\$__VERIFIER_nondet_bool", "i32.const 0\n\tb32.symbolic")
-     ; ( "call \\$__(VERIFIER_nondet_(u?(char|short|int128|int|long)))"
-       , "(i32.symbolic (i32.const 0))" )
-     ; ("call \\$__WASP_symb_int", "i32.symbolic")
-     ; ("call \\$__WASP_symb_long", "i64.symbolic")
-     ; ("call \\$__WASP_symb_float", "f32.symbolic")
-     ; ("call \\$__WASP_symb_double", "f64.symbolic")
-     ; ("call \\$__VERIFIER_nondet_float", "(f32.symbolic (i32.const 0))")
-     ; ("call \\$__VERIFIER_nondet_double", "(f64.symbolic (i32.const 0))")
-     ; ("call \\$__WASP_alloc", "alloc")
-     ; ("call \\$__WASP_dealloc", "free")
-     ; ("call \\$__WASP_is_symbolic", "is_symbolic")
-     ; ("call \\$__WASP_print_stack", "print_stack")
-     ; ("call \\$__WASP_print_pc", "print_pc")
-     ; ("call \\$and_", "i32.__logand")
-     ; ("call \\$or_", "i32.__logor")
-     ; ("call \\$ite", "__ternary_op")
-     ; ("anyfunc", "funcref")
-     ; ("\\(elem \\(;0;\\) \\(i32.const 1\\) func", "(elem (;0;) (i32.const 1)")
-    |]
-
 let patch_with_regex (file_data : string) ~patterns : string =
   Array.fold_left
     (fun data (regex, template) -> Re2.rewrite_exn regex ~template data)
@@ -120,18 +94,8 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
   let* _ = OS.Cmd.run @@ wasm2wat file_wasm file_wat in
   file_wat
 
-let run_file file output =
-  Log.debug "      running2 ...@.";
-  (* Set flags in the reference interpreter *)
-  Interpreter.Flags.trace := true;
-  Interpreter.Flags.output := Fpath.to_string output;
-  (* Create command sequence for reference interpreter *)
-  let cmds =
-    [ Format.sprintf "(input \"%s\")" (Fpath.to_string file)
-    ; Format.sprintf "(invoke \"__original_main\")"
-    ]
-  in
-  List.iter (fun cmd -> if not @@ Wasp.Run.run_string_se cmd then exit 1) cmds
+let run_file _file _output =
+  Log.debug "      running ...@."
 
 let main debug output includes files =
   Log.on_debug := debug;
@@ -145,8 +109,7 @@ let main debug output includes files =
       let* _ = OS.File.write tmp_file_path file_data in
       let wat_file_path = compile_file tmp_file_path ~includes in
       let* file_data = OS.File.read wat_file_path in
-      let file_data' = patch_with_regex file_data ~patterns:post_patterns in
-      let* _ = OS.File.write wat_file_path file_data' in
+      let* _ = OS.File.write wat_file_path file_data in
       run_file wat_file_path output )
     files
 
