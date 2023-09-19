@@ -26,6 +26,7 @@ let patch_gcc_ext (file_data : string) : string =
     ; "#define __inline"
     ; "#include <wasp.h>"
     ; "#include <assert.h>"
+    ; "void _start() { main(); }"
     ; file_data
     ]
 
@@ -57,6 +58,8 @@ let ld flags out_file file =
   let libc = Fpath.(v ld_path / "libc.wasm") in
   Cmd.(v "wasm-ld" %% flags % "-o" % p out_file % p libc % p file)
 
+let binaryen bin = Cmd.(v "wasm-opt" % "-O3" % "-o" % p bin % p bin)
+
 let wasm2wat binary output = Cmd.(v "wasm2wat" % p binary % "-o" % p output)
 
 let compile_file (file : Fpath.t) ~(includes : string list) =
@@ -75,7 +78,7 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
         ]
     in
     Cmd.(
-      of_list [ "-O3"; "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
+      of_list [ "-O1"; "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
       %% warnings %% includes )
   in
   let ldflags entry =
@@ -90,7 +93,8 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
   let* _ = OS.Cmd.run @@ clang cflags file_bc file in
   let* _ = OS.Cmd.run @@ opt file_bc in
   let* _ = OS.Cmd.run @@ llc file_bc file_obj in
-  let* _ = OS.Cmd.run @@ ld (ldflags "__original_main") file_wasm file_obj in
+  let* _ = OS.Cmd.run @@ ld (ldflags "_start") file_wasm file_obj in
+  let* _ = OS.Cmd.run @@ binaryen file_wasm in
   let* _ = OS.Cmd.run @@ wasm2wat file_wasm file_wat in
   file_wat
 
