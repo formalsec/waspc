@@ -5,11 +5,11 @@ owi_alloc(void *, unsigned int);
 __attribute__((import_module("summaries"), import_name("dealloc"))) void
 owi_dealloc(void *);
 
-extern inline void *__WASP_alloc(void *ptr, unsigned int size) {
+void *__WASP_alloc(void *ptr, unsigned int size) {
   return owi_alloc(ptr, size);
 }
 
-extern inline void __WASP_dealloc(void *ptr) { return owi_dealloc(ptr); }
+void __WASP_dealloc(void *ptr) { return owi_dealloc(ptr); }
 
 __attribute__((import_module("symbolic"), import_name("i32_symbol"))) int
 i32_symbol();
@@ -36,7 +36,10 @@ void __WASP_assume(int expr) { owi_assume(expr); }
 void __WASP_assert(int expr) { owi_assert(expr); }
 
 void assume(int expr) { return __WASP_assume(expr); }
-int __WASP_is_symbolic(void *var, unsigned int sz) { return 1; }
+
+__attribute__((import_module("summaries"), import_name("is_symbolic"))) int
+owi_is_symbolic(void *var, unsigned int);
+int __WASP_is_symbolic(void *var, unsigned int sz) { return owi_is_symbolic(var, sz); }
 
 /* int __WASP_print_stack(int a) { return 0; } */
 /* void __WASP_print_pc() {} */
