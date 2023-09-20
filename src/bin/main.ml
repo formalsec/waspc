@@ -58,7 +58,7 @@ let ld flags out_file file =
   let libc = Fpath.(v ld_path / "libc.wasm") in
   Cmd.(v "wasm-ld" %% flags % "-o" % p out_file % p libc % p file)
 
-let binaryen bin = Cmd.(v "wasm-opt" % "-O3" % "-o" % p bin % p bin)
+(* let binaryen bin = Cmd.(v "wasm-opt" % "-O3" % "-o" % p bin % p bin) *)
 
 let wasm2wat binary output = Cmd.(v "wasm2wat" % p binary % "-o" % p output)
 
@@ -94,7 +94,7 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
   let* _ = OS.Cmd.run @@ opt file_bc in
   let* _ = OS.Cmd.run @@ llc file_bc file_obj in
   let* _ = OS.Cmd.run @@ ld (ldflags "_start") file_wasm file_obj in
-  let* _ = OS.Cmd.run @@ binaryen file_wasm in
+  (* let* _ = OS.Cmd.run @@ binaryen file_wasm in *)
   let* _ = OS.Cmd.run @@ wasm2wat file_wasm file_wat in
   file_wat
 
@@ -136,7 +136,7 @@ let cli =
   let open Cmdliner in
   let doc = "wasp-c" in
   let man = [ `S Manpage.s_bugs; `P "Email them to TODO" ] in
-  let info = Cmd.info "waspc" ~doc ~man in
+  let info = Cmd.info "waspc" ~version:"owic" ~doc ~man in
   Cmd.v info Term.(const main $ debug $ output $ includes $ files)
 
 let () = exit @@ Cmdliner.Cmd.eval cli
