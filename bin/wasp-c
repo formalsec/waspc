@@ -6,4 +6,4 @@ ROOT_DIR=$(dirname $BIN_DIR)
 export LD_PATH="${BIN_DIR}"
 export PYTHONPATH="${ROOT_DIR}/py"
 
-dune exec -- ./src/bin/main.exe $@
+waspc $@
