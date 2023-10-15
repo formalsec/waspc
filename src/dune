@@ -1,4 +1,4 @@
 (library
  (name waspc)
  (modules log instrumentor run)
- (libraries re2 bos pyml))
+ (libraries re2 bos pyml share))

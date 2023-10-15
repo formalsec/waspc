@@ -5,8 +5,8 @@ description: "TODO"
 maintainer: ["WASP Platform"]
 authors: ["WASP Platform"]
 license: "Apache-2.0"
-homepage: "https://github.com/wasp-platform/wasp"
-bug-reports: "https://github.com/wasp-platform/wasp/issues"
+homepage: "https://github.com/wasp-platform/waspc"
+bug-reports: "https://github.com/wasp-platform/waspc/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.0"}
@@ -14,6 +14,7 @@ depends: [
   "bos"
   "pyml"
   "cmdliner"
+  "dune-site"
   "odoc" {with-doc}
 ]
 build: [
@@ -25,9 +26,11 @@ build: [
     name
     "-j"
     jobs
+    "--promote-install-files=false"
     "@install"
     "@runtest" {with-test}
     "@doc" {with-doc}
   ]
+  ["dune" "install" "-p" name "--create-install-files" name]
 ]
-dev-repo: "git+https://github.com/wasp-platform/wasp.git"
+dev-repo: "git+https://github.com/wasp-platform/waspc.git"

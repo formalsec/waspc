@@ -31,6 +31,8 @@ let patch_gcc_ext (file_data : string) : string =
 
 let instrument_file (file : Fpath.t) (includes : string list) =
   Log.debug "instrumenting ...@.";
+  let pypath = String.concat ":" Share.py_location in
+  let* () = OS.Env.set_var "PYTHONPATH" (Some pypath) in
   let* data = OS.File.read file in
   let data = patch_gcc_ext data |> patch_with_regex ~patterns:pre_patterns in
   try
@@ -53,9 +55,8 @@ let llc bc obj =
   Cmd.(v "llc" %% flags % p obj % p bc)
 
 let ld flags out_file file =
-  let* ld_path = OS.Env.req_var "LD_PATH" in
-  let libc = Fpath.(v ld_path / "libc.wasm") in
-  Cmd.(v "wasm-ld" %% flags % "-o" % p out_file % p libc % p file)
+  let libc = Share.get_libc () |> Option.get in
+  Cmd.(v "wasm-ld" %% flags % "-o" % p out_file % libc % p file)
 
 (* let binaryen bin = Cmd.(v "wasm-opt" % "-O3" % "-o" % p bin % p bin) *)
 
@@ -114,5 +115,3 @@ let main debug output includes files =
       let* _ = OS.File.write wat_file_path file_data in
       run_file wat_file_path output )
     files
-
-

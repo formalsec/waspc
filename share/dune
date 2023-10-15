@@ -1,0 +1,22 @@
+(library
+ (name share)
+ (modules share share_site)
+ (libraries dune-site))
+
+(generate_sites_module
+ (module share_site)
+ (sites waspc))
+
+(install
+ (package waspc)
+ (section
+  (site (waspc py)))
+ (files
+  (py/instrumentor.py as instrumentor.py)))
+
+(install
+ (package waspc)
+ (section
+  (site (waspc bin)))
+ (files
+  (bin/libc.wasm as libc.wasm)))

@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-
-BIN_DIR=$(dirname $0)
-ROOT_DIR=$(dirname $BIN_DIR)
-
-export LD_PATH="${BIN_DIR}"
-export PYTHONPATH="${ROOT_DIR}/py"
-
-waspc $@
