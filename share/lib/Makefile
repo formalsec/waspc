@@ -1,8 +1,9 @@
 # Settings
 CC=clang
 LD=wasm-ld
-LIB=.
-SRC=.
+
+INC=include
+SRC=src
 BIN=../bin
 BUILD=../_build
 
@@ -10,7 +11,7 @@ BUILD=../_build
 OPT ?= -O3
 
 # Incldues
-INCLUDES += -I$(LIB)
+INCLUDES += -I$(INC)
 
 # Warnings
 WARN += -Wno-parentheses-equality
@@ -36,13 +37,13 @@ OBJECTS := $(addprefix $(BUILD)/,$(notdir $(SOURCES:.c=.o)))
 
 .PHONY: clean
 
-.SECONDARY: $(OBJECTS)
+# .SECONDARY: $(OBJECTS)
 
 default: all
 
 all: $(BIN)/libc.wasm
 
-$(BUILD)/%.bc: %.c
+$(BUILD)/%.bc: $(SRC)/%.c
 	@mkdir -p $(dir $@)
 	@echo "$(CC) $(CFLAGS) -o $@ $<"; $(CC) $(CFLAGS) -o $@ $<
 
