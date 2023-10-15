@@ -104,6 +104,7 @@ let main debug output includes files =
   Log.on_debug := debug;
   let output = Fpath.v output in
   let* _ = OS.Dir.create output in
+  let includes = Share.lib_location @ includes in
   List.iter
     (fun file ->
       let* file = OS.File.must_exist (Fpath.v file) in
