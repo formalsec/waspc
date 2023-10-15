@@ -2,9 +2,4 @@
  (package waspc)
  (public_name waspc)
  (name main)
- (libraries
-  waspc
-  re2
-  bos
-  pyml
-  cmdliner))
+ (libraries waspc cmdliner))
