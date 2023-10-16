@@ -1,1 +1,1 @@
-val instrument : string -> string list -> string
+val instrument : string -> string list -> unit
