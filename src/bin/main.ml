@@ -31,4 +31,4 @@ let cli =
   let info = Cmd.info "owic" ~version:"test-comp24" ~doc ~man in
   Cmd.v info Term.(const Run.main $ debug $ output $ includes $ files)
 
-let () = exit @@ Cmdliner.Cmd.eval cli
+let () = exit @@ Cmdliner.Cmd.eval' cli
