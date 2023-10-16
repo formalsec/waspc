@@ -1,13 +1,14 @@
 #ifndef STDLIB_H
 #define STDLIB_H
 
-#include "assert.h"
+#include <assert.h>
 #include <sys/types.h>
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
 void abort(void);
+void exit(int);
 
 void *alloca(size_t);
 

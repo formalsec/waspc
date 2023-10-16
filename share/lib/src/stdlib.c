@@ -1,9 +1,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <owi.h>
 #include <stdlib.h>
-
-#include "wasp.h"
 
 #define ABS_LONG_MIN 2147483648UL
 
@@ -13,7 +12,13 @@
 #define ldbltype double
 #endif
 
-void abort(void) { __WASP_assume(0); }
+__attribute__((import_module("summaries"), import_name("abort"))) void
+owi_abort(void);
+__attribute__((import_module("summaries"), import_name("exit"))) void
+owi_exit(int);
+
+void abort() { owi_abort(); }
+void exit(int status) { owi_exit(status); }
 
 extern unsigned char __heap_base;
 unsigned int bump_pointer = &__heap_base;
@@ -23,7 +28,7 @@ void *malloc(size_t size) {
   /* for (int i = 0; i < size; ++i) */
   /*   *((unsigned char *)bump_pointer + i) = 'i'; */
   bump_pointer += size;
-  return (void *)__WASP_alloc(r, size);
+  return (void *)owi_malloc(r, size);
 }
 
 void *alloca(size_t size) { return malloc(size); }
@@ -33,15 +38,15 @@ void *calloc(size_t nmemb, size_t size) {
   /* for (int i = 0; i < nmemb * size; ++i) */
   /*   *((unsigned int *)(bump_pointer + i)) = 0; */
   bump_pointer += (nmemb * size);
-  return (void *)__WASP_alloc(r, nmemb * size);
+  return (void *)owi_malloc(r, nmemb * size);
 }
 
 void *realloc(void *ptr, size_t size) {
-  __WASP_dealloc(ptr);
-  return (void *)__WASP_alloc(ptr, size);
+  owi_free(ptr);
+  return (void *)owi_malloc(ptr, size);
 }
 
-void free(void *ptr) { __WASP_dealloc(ptr); }
+void free(void *ptr) { owi_free(ptr); }
 
 char *getenv(const char *name) { return (char *)0; }
 int setenv(const char *name, const char *value, int overwrite) { return 0; }

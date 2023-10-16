@@ -1,48 +1,36 @@
-#include "wasp.h"
+#include <owi.h>
 
 __attribute__((import_module("summaries"), import_name("alloc"))) void *
-owi_alloc(void *, unsigned int);
+__owi_alloc(void *, unsigned int);
 __attribute__((import_module("summaries"), import_name("dealloc"))) void
-owi_dealloc(void *);
-
-void *__WASP_alloc(void *ptr, unsigned int size) {
-  return owi_alloc(ptr, size);
-}
-
-void __WASP_dealloc(void *ptr) { return owi_dealloc(ptr); }
+__owi_dealloc(void *);
 
 __attribute__((import_module("symbolic"), import_name("i32_symbol"))) int
-i32_symbol();
+__i32();
 __attribute__((import_module("symbolic"), import_name("i64_symbol"))) long long
-i64_symbol();
+__i64();
 __attribute__((import_module("symbolic"), import_name("f32_symbol"))) float
-f32_symbol();
+__f32();
 __attribute__((import_module("symbolic"), import_name("f64_symbol"))) double
-f64_symbol();
-
-int __WASP_symb_int(char *name) { return i32_symbol(); }
-long long __WASP_symb_long(char *name) { return i64_symbol(); }
-float __WASP_symb_float(char *name) { return f32_symbol(); }
-double __WASP_symb_double(char *name) { return f64_symbol(); }
+__f64();
 
 __attribute__((import_module("symbolic"), import_name("assume"))) void
-owi_assume(int);
+__owi_assume(int);
 __attribute__((import_module("symbolic"), import_name("assert"))) void
-owi_assert(int);
+__owi_assert(int);
 
-void __WASP_assume(int expr) { owi_assume(expr); }
-void __WASP_assert(int expr) { owi_assert(expr); }
+void *owi_malloc(void *base, unsigned int size) { __owi_alloc(base, size); }
+void owi_free(void *base) { __owi_dealloc(base); }
 
-void assume(int expr) { return __WASP_assume(expr); }
+int owi_i32() { return __i32(); }
+long long owi_i64() { return __i64(); }
+float owi_f32() { return __f32(); }
+double owi_f64() { return __f64(); }
 
-__attribute__((import_module("summaries"), import_name("is_symbolic"))) int
-owi_is_symbolic(void *var, unsigned int);
-int __WASP_is_symbolic(void *var, unsigned int sz) {
-  return owi_is_symbolic(var, sz);
-}
+void owi_assume(int c) { __owi_assume(c); }
+void owi_assert(int c) { __owi_assert(c); }
 
-/* int __WASP_print_stack(int a) { return 0; } */
-/* void __WASP_print_pc() {} */
+void assume(int) __attribute__((weak, alias("owi_assume")));
 
 int and_(int a, int b) {
   __asm__ __volatile__("local.get 0;"
@@ -65,5 +53,3 @@ int or_(int a, int b) {
                        "i32.or;"
                        "return;");
 }
-
-/* int ite(int cond, int a, int b) { return cond ? a : b; } */
