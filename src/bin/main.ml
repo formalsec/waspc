@@ -1,4 +1,4 @@
-open Waspc
+open Owic
 
 let debug =
   let doc = "debug mode" in

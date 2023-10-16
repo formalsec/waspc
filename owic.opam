@@ -2,8 +2,8 @@
 opam-version: "2.0"
 synopsis: "TODO"
 description: "TODO"
-maintainer: ["WASP Platform"]
-authors: ["WASP Platform"]
+maintainer: ["TODO"]
+authors: ["TODO"]
 license: "Apache-2.0"
 homepage: "https://github.com/wasp-platform/waspc"
 bug-reports: "https://github.com/wasp-platform/waspc/issues"

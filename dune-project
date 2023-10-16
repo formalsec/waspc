@@ -2,21 +2,21 @@
 
 (using dune_site 0.1)
 
-(name waspc)
+(name owic)
 
 (generate_opam_files true)
 
 (source
  (github wasp-platform/waspc))
 
-(authors "WASP Platform")
+(authors "TODO")
 
-(maintainers "WASP Platform")
+(maintainers "TODO")
 
 (license "Apache-2.0")
 
 (package
- (name waspc)
+ (name owic)
  (synopsis "TODO")
  (description "TODO")
  (depends ocaml dune re2 bos pyml cmdliner dune-site)

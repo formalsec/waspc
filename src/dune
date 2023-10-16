@@ -1,4 +1,4 @@
 (library
- (name waspc)
+ (name owic)
  (modules instrumentor run)
  (libraries re2 bos bos.setup pyml share))
