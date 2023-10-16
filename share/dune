@@ -55,4 +55,4 @@
   (lib/include/string.h as string.h)
   (lib/include/time.h as time.h)
   (lib/include/unistd.h as unistd.h)
-  (lib/include/wasp.h as wasp.h)))
+  (lib/include/owi.h as owi.h)))

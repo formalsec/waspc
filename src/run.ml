@@ -7,9 +7,9 @@ let pre_patterns : (Re2.t * string) array =
   Array.map
     (fun (regex, template) -> (Re2.create_exn regex, template))
     [| ( "void\\s+reach_error\\(\\)\\s*\\{.*\\}"
-       , "void reach_error() { __WASP_assert(0); }" )
+       , "void reach_error() { owi_assert(0); }" )
        (* ugly: Hack to solve duplicate errors on compilation *)
-     ; ("void\\s+(assert|assume)\\(", "void old_\\1(")
+     (* ; ("void\\s+(assert|assume)\\(", "void old_\\1(") *)
     |]
 
 let patch_with_regex (file_data : string) ~patterns : string =
@@ -23,8 +23,7 @@ let patch_gcc_ext (file_data : string) : string =
     ; "#define __extension__"
     ; "#define __restrict"
     ; "#define __inline"
-    ; "#include <wasp.h>"
-    ; "#include <assert.h>"
+    ; "#include <owi.h>"
     ; "void _start() { main(); }"
     ; file_data
     ]
@@ -102,17 +101,17 @@ let run_file _file _output = Log.debug "      running ...@."
 
 let main debug output includes files =
   Log.on_debug := debug;
-  let output = Fpath.v output in
-  let* _ = OS.Dir.create output in
+  let output_dir = Fpath.v output in
   let includes = Share.lib_location @ includes in
+  let* _ = OS.Dir.create output_dir in
   List.iter
     (fun file ->
       let* file = OS.File.must_exist (Fpath.v file) in
       let file_data = instrument_file file includes in
-      let tmp_file_path = Fpath.(output // base file) in
+      let tmp_file_path = Fpath.(output_dir // base file) in
       let* _ = OS.File.write tmp_file_path file_data in
       let wat_file_path = compile_file tmp_file_path ~includes in
       let* file_data = OS.File.read wat_file_path in
       let* _ = OS.File.write wat_file_path file_data in
-      run_file wat_file_path output )
+      run_file wat_file_path output_dir )
     files
