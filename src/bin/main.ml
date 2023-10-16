@@ -14,7 +14,7 @@ let includes =
 
 let files =
   let doc = "source files" in
-  Cmdliner.Arg.(value & pos 0 (list ~sep:' ' string) [] & info [] ~doc)
+  Cmdliner.Arg.(value & pos_all file [] & info [] ~doc)
 
 let cli =
   let open Cmdliner in

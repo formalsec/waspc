@@ -1,7 +1,12 @@
-open Bos
+open Bos_setup
 
 (* Just blowup for now, maybe bind later? *)
-let ( let* ) r f = match r with Error (`Msg e) -> failwith e | Ok v -> f v
+let ( let* ) r f =
+  match r with
+  | Error (`Msg e) ->
+    Format.printf "%s@." e;
+    exit 1
+  | Ok v -> f v
 
 let pre_patterns : (Re2.t * string) array =
   Array.map
@@ -9,7 +14,7 @@ let pre_patterns : (Re2.t * string) array =
     [| ( "void\\s+reach_error\\(\\)\\s*\\{.*\\}"
        , "void reach_error() { owi_assert(0); }" )
        (* ugly: Hack to solve duplicate errors on compilation *)
-     (* ; ("void\\s+(assert|assume)\\(", "void old_\\1(") *)
+       (* ; ("void\\s+(assert|assume)\\(", "void old_\\1(") *)
     |]
 
 let patch_with_regex (file_data : string) ~patterns : string =
@@ -18,19 +23,18 @@ let patch_with_regex (file_data : string) ~patterns : string =
     file_data patterns
 
 let patch_gcc_ext (file_data : string) : string =
-  String.concat "\n"
+  String.concat ~sep:"\n"
     [ "#define __attribute__(x)"
     ; "#define __extension__"
     ; "#define __restrict"
     ; "#define __inline"
     ; "#include <owi.h>"
-    ; "void _start() { main(); }"
     ; file_data
     ]
 
 let instrument_file (file : Fpath.t) (includes : string list) =
-  Log.debug "instrumenting ...@.";
-  let pypath = String.concat ":" Share.py_location in
+  Log.debug "instrumenting %a@." Fpath.pp file;
+  let pypath = String.concat ~sep:":" Share.py_location in
   let* () = OS.Env.set_var "PYTHONPATH" (Some pypath) in
   let* data = OS.File.read file in
   let data = patch_gcc_ext data |> patch_with_regex ~patterns:pre_patterns in
@@ -39,30 +43,26 @@ let instrument_file (file : Fpath.t) (includes : string list) =
     let data = Instrumentor.instrument data includes in
     Py.finalize ();
     data
-  with Py.E (err_type, _) as _e ->
-    Log.debug "      warning : exception \"%s\"@."
-      (Py.Object.to_string err_type);
+  with Py.E (err_type, _) ->
+    Log.debug "warning : exception %a@." Py.Object.format err_type;
     data
 
-let clang flags out_file file =
-  Cmd.(v "clang" %% flags % "-o" % p out_file % p file)
-
+let clang ~flags ~out file = Cmd.(v "clang" %% flags % "-o" % p out % p file)
 let opt file = Cmd.(v "opt" % "-O1" % "-o" % p file % p file)
 
-let llc bc obj =
+let llc ~bc ~obj =
   let flags = Cmd.of_list [ "-O1"; "-march=wasm32"; "-filetype=obj"; "-o" ] in
   Cmd.(v "llc" %% flags % p obj % p bc)
 
-let ld flags out_file file =
+let ld ~flags ~out files =
   let libc = Share.get_libc () |> Option.get in
-  Cmd.(v "wasm-ld" %% flags % "-o" % p out_file % libc % p file)
+  let files = Cmd.of_list files in
+  Cmd.(v "wasm-ld" %% flags % "-o" % p out % libc %% files)
 
-(* let binaryen bin = Cmd.(v "wasm-opt" % "-O3" % "-o" % p bin % p bin) *)
+let wasm2wat ~out bin = Cmd.(v "wasm2wat" % "-o" % p out % p bin)
 
-let wasm2wat binary output = Cmd.(v "wasm2wat" % p binary % "-o" % p output)
-
-let compile_file (file : Fpath.t) ~(includes : string list) =
-  Log.debug "    compiling ...@.";
+let compile (file : Fpath.t) ~(includes : string list) =
+  Log.debug "compiling %a@." Fpath.pp file;
   let cflags =
     let includes = Cmd.of_list ~slip:"-I" includes in
     let warnings =
@@ -80,38 +80,57 @@ let compile_file (file : Fpath.t) ~(includes : string list) =
       of_list [ "-O1"; "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
       %% warnings %% includes )
   in
-  let ldflags entry =
-    Cmd.(
-      of_list [ "-z"; "stack-size=8388608"; "--no-entry" ]
-      % ("--export=" ^ entry) )
-  in
-  let file_bc = Fpath.(file -+ ".bc") in
-  let file_obj = Fpath.(file -+ ".o") in
-  let file_wasm = Fpath.(file -+ ".wasm") in
-  let file_wat = Fpath.(file -+ ".wat") in
-  let* _ = OS.Cmd.run @@ clang cflags file_bc file in
-  let* _ = OS.Cmd.run @@ opt file_bc in
-  let* _ = OS.Cmd.run @@ llc file_bc file_obj in
-  let* _ = OS.Cmd.run @@ ld (ldflags "_start") file_wasm file_obj in
-  (* let* _ = OS.Cmd.run @@ binaryen file_wasm in *)
-  let* _ = OS.Cmd.run @@ wasm2wat file_wasm file_wat in
-  file_wat
+  let bc = Fpath.(file -+ ".bc") in
+  let obj = Fpath.(file -+ ".o") in
+  let* () = OS.Cmd.run @@ clang ~flags:cflags ~out:bc file in
+  let* () = OS.Cmd.run @@ opt bc in
+  let* () = OS.Cmd.run @@ llc ~bc ~obj in
+  obj
 
-let run_file _file _output = Log.debug "      running ...@."
+let link (files : Fpath.t list) output : Fpath.t =
+  let ldflags ~export =
+    let stack_size = 8 * (1024 * 1024) in
+    Cmd.(
+      of_list
+        [ "-z"; "stack-size=" ^ string_of_int stack_size; "--entry=" ^ export ] )
+  in
+  let wasm = Fpath.(output / "a.out.wasm") in
+  let wat = Fpath.(output / "a.out.wat") in
+  let files = List.map Fpath.to_string files in
+  let* () =
+    OS.Cmd.run @@ ld ~flags:(ldflags ~export:"_start") ~out:wasm files
+  in
+  let* () = OS.Cmd.run @@ wasm2wat ~out:wat wasm in
+  wat
+
+let cleanup dir =
+  OS.Path.fold ~elements:`Files
+    (fun path _acc ->
+      if not (Fpath.has_ext ".wat" path || Fpath.has_ext ".wasm" path) then
+        match OS.Path.delete path with
+        | Ok () -> ()
+        | Error (`Msg e) -> Logs.warn (fun m -> m "%s" e) )
+    () [ dir ]
+  |> Logs.on_error_msg ~level:Logs.Warning ~use:Fun.id
+
+let run_file _file _output = Log.debug "running ...@."
 
 let main debug output includes files =
-  Log.on_debug := debug;
+  if debug then Logs.set_level (Some Debug);
   let output_dir = Fpath.v output in
   let includes = Share.lib_location @ includes in
   let* _ = OS.Dir.create output_dir in
-  List.iter
-    (fun file ->
-      let* file = OS.File.must_exist (Fpath.v file) in
-      let file_data = instrument_file file includes in
-      let tmp_file_path = Fpath.(output_dir // base file) in
-      let* _ = OS.File.write tmp_file_path file_data in
-      let wat_file_path = compile_file tmp_file_path ~includes in
-      let* file_data = OS.File.read wat_file_path in
-      let* _ = OS.File.write wat_file_path file_data in
-      run_file wat_file_path output_dir )
-    files
+  let instrumented_files =
+    List.map
+      (fun file ->
+        let* file = OS.File.must_exist (Fpath.v file) in
+        let data = instrument_file file includes in
+        let file = Fpath.(output_dir // base file) in
+        let* () = OS.File.write file data in
+        file )
+      files
+  in
+  let objects = List.map (compile ~includes) instrumented_files in
+  let module_ = link objects output_dir in
+  cleanup output_dir;
+  run_file module_ output_dir
