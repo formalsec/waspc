@@ -1,6 +1,5 @@
 open Bos_setup
 
-(* Just blowup for now, maybe bind later? *)
 let ( let* ) = Rresult.R.bind
 
 let list_map f lst =
@@ -26,8 +25,7 @@ let patch_with_regex ~patterns (data : string) : string =
     (fun data (regex, template) -> Re2.rewrite_exn regex ~template data)
     data patterns
 
-let patch ~(src : Fpath.t) ~(workspace : Fpath.t) =
-  let dst = Fpath.(workspace // base src) in
+let patch ~(src : Fpath.t) ~(dst : Fpath.t) =
   let* data = OS.File.read src in
   let data = patch_with_regex ~patterns:pre_patterns data in
   let data =
@@ -41,25 +39,34 @@ let patch ~(src : Fpath.t) ~(workspace : Fpath.t) =
       ]
   in
   let* () = OS.File.write dst data in
+  Ok ()
+
+let copy ~src ~dst =
+  let* data = OS.File.read src in
+  let* () = OS.File.write dst data in
   Ok dst
 
-let instrument_file ~(includes : string list) ~(workspace : Fpath.t)
-  (file : string) =
+let instrument_file ?(skip = false) ~(includes : string list)
+  ~(workspace : Fpath.t) (file : string) =
   let file = Fpath.v file in
-  Logs.app (fun m -> m "instrumenting %a" Fpath.pp file);
-  let* dst = patch ~src:file ~workspace in
-  let pypath = String.concat ~sep:":" Share.py_location in
-  let* () = OS.Env.set_var "PYTHONPATH" (Some pypath) in
-  begin
-    try
-      Py.initialize ();
-      Instrumentor.instrument (Fpath.to_string dst) includes;
-      Py.finalize ()
-    with Py.E (errtype, errvalue) ->
-      let pp = Py.Object.format in
-      Logs.warn (fun m -> m "instrumentor: %a: %a" pp errtype pp errvalue)
-  end;
-  Ok dst
+  let dst = Fpath.(workspace // file) in
+  if skip then copy ~src:file ~dst
+  else begin
+    Logs.app (fun m -> m "instrumenting %a" Fpath.pp file);
+    let* () = patch ~src:file ~dst in
+    let pypath = String.concat ~sep:":" Share.py_location in
+    let* () = OS.Env.set_var "PYTHONPATH" (Some pypath) in
+    begin
+      try
+        Py.initialize ();
+        Instrumentor.instrument (Fpath.to_string dst) includes;
+        Py.finalize ()
+      with Py.E (errtype, errvalue) ->
+        let pp = Py.Object.format in
+        Logs.warn (fun m -> m "instrumentor: %a: %a" pp errtype pp errvalue)
+    end;
+    Ok dst
+  end
 
 let clang ~flags ~out file = Cmd.(v "clang" %% flags % "-o" % p out % p file)
 let opt file = Cmd.(v "opt" % "-O1" % "-o" % p file % p file)
@@ -71,7 +78,7 @@ let llc ~bc ~obj =
 let ld ~flags ~out files =
   let libc = Share.get_libc () |> Option.get in
   let files = List.fold_left (fun acc f -> Cmd.(acc % p f)) Cmd.empty files in
-  Cmd.(v "wasm-ld" %% flags % "-o" % p out % libc %% files)
+  Cmd.(v "wasm-ld" %% flags % "-o" % p out %% files % libc)
 
 let wasm2wat ~out bin = Cmd.(v "wasm2wat" % "-o" % p out % p bin)
 
@@ -128,13 +135,15 @@ let run ~workspace:_ _file =
   Logs.app (fun m -> m "running ...");
   Ok 0
 
-let main debug output includes files =
+let main debug testcomp output includes files =
   if debug then Logs.set_level (Some Debug);
   let workspace = Fpath.v output in
   let includes = Share.lib_location @ includes in
   let ret =
     let* _ = OS.Dir.create workspace in
-    let* files = list_map (instrument_file ~includes ~workspace) files in
+    (* skip instrumentation if not in test-comp mode *)
+    let skip = not testcomp in
+    let* files = list_map (instrument_file ~skip ~includes ~workspace) files in
     let* objects = list_map (compile ~includes) files in
     let* module_ = link ~workspace objects in
     cleanup workspace;

@@ -1,23 +1,27 @@
 open Owic
+open Cmdliner
 
 let debug =
   let doc = "debug mode" in
-  Cmdliner.Arg.(value & flag & info [ "debug" ] ~doc)
+  Arg.(value & flag & info [ "debug" ] ~doc)
+
+let testcomp =
+  let doc = "test-comp mode" in
+  Arg.(value & flag & info [ "testcomp" ] ~doc)
 
 let output =
   let doc = "write results to dir" in
-  Cmdliner.Arg.(value & opt string "owi-out" & info [ "output"; "o" ] ~doc)
+  Arg.(value & opt string "owi-out" & info [ "output"; "o" ] ~doc)
 
 let includes =
   let doc = "headers path" in
-  Cmdliner.Arg.(value & opt_all string [] & info [ "I" ] ~doc)
+  Arg.(value & opt_all string [] & info [ "I" ] ~doc)
 
 let files =
   let doc = "source files" in
-  Cmdliner.Arg.(value & pos_all file [] & info [] ~doc)
+  Arg.(value & pos_all file [] & info [] ~doc)
 
 let cli =
-  let open Cmdliner in
   let doc = "A C to Wasm Compiler to integrate with OWI" in
   let man =
     [ `S Manpage.s_description
@@ -29,6 +33,7 @@ let cli =
     ]
   in
   let info = Cmd.info "owic" ~version:"test-comp24" ~doc ~man in
-  Cmd.v info Term.(const Run.main $ debug $ output $ includes $ files)
+  Cmd.v info
+    Term.(const Run.main $ debug $ testcomp $ output $ includes $ files)
 
-let () = exit @@ Cmdliner.Cmd.eval' cli
+let () = exit @@ Cmd.eval' cli
