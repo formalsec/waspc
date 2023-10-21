@@ -49,7 +49,7 @@ let copy ~src ~dst =
 let instrument_file ?(skip = false) ~(includes : string list)
   ~(workspace : Fpath.t) (file : string) =
   let file = Fpath.v file in
-  let dst = Fpath.(workspace // file) in
+  let dst = Fpath.(workspace // base file) in
   if skip then copy ~src:file ~dst
   else begin
     Logs.app (fun m -> m "instrumenting %a" Fpath.pp file);
@@ -131,8 +131,8 @@ let cleanup dir =
     () [ dir ]
   |> Logs.on_error_msg ~level:Logs.Warning ~use:Fun.id
 
-let run ~workspace:_ _file =
-  Logs.app (fun m -> m "running ...");
+let run ~workspace:_ file =
+  Logs.app (fun m -> m "running %a" Fpath.pp file);
   Ok 0
 
 let main debug testcomp output includes files =
