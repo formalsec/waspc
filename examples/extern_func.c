@@ -1,13 +1,12 @@
-#include <owi.h>
+__attribute__((import_module("db"), import_name("get"))) int get();
+__attribute__((import_module("db"), import_name("set"))) void set(int);
 
-__attribute__((import_module("env"), import_name("get"))) int get();
-__attribute__((import_module("env"), import_name("set"))) void set(int);
+void incr() {
+  int count = get();
+  set(count + 1);
+}
 
 int main() {
-  int count = get();
-  if (count > 0) {
-    owi_assert(0);
-  }
-  set(10);
+  incr();
   return 0;
 }
