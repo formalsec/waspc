@@ -11,6 +11,42 @@ let list_map f lst =
          lst )
   with E e -> Error e
 
+type deps =
+  { clang : flags:Cmd.t -> out:Fpath.t -> Fpath.t -> Cmd.t
+  ; opt : Fpath.t -> Cmd.t
+  ; llc : bc:Fpath.t -> obj:Fpath.t -> Cmd.t
+  ; ld : flags:Cmd.t -> out:Fpath.t -> Fpath.t list -> Cmd.t
+  ; wasm2wat : out:Fpath.t -> Fpath.t -> Cmd.t
+  }
+
+let clang bin ~flags ~out file = Cmd.(bin %% flags % "-o" % p out % p file)
+let opt bin file = Cmd.(bin % "-O1" % "-o" % p file % p file)
+
+let llc bin ~bc ~obj =
+  let flags = Cmd.of_list [ "-O1"; "-march=wasm32"; "-filetype=obj"; "-o" ] in
+  Cmd.(bin %% flags % p obj % p bc)
+
+let ld bin ~flags ~out files =
+  let libc = Share.get_libc () |> Option.get in
+  let files = List.fold_left (fun acc f -> Cmd.(acc % p f)) Cmd.empty files in
+  Cmd.(bin %% flags % "-o" % p out %% files % libc)
+
+let wasm2wat bin0 ~out bin = Cmd.(bin0 % "-o" % p out % p bin)
+
+let check_dependencies () =
+  let* clang_bin = OS.Cmd.resolve @@ Cmd.v "clang" in
+  let* opt_bin = OS.Cmd.resolve @@ Cmd.v "opt" in
+  let* llc_bin = OS.Cmd.resolve @@ Cmd.v "llc" in
+  let* ld_bin = OS.Cmd.resolve @@ Cmd.v "wasm-ld" in
+  let* wasm2wat_bin = OS.Cmd.resolve @@ Cmd.v "wasm2wat" in
+  Ok
+    { clang = clang clang_bin
+    ; opt = opt opt_bin
+    ; llc = llc llc_bin
+    ; ld = ld ld_bin
+    ; wasm2wat = wasm2wat wasm2wat_bin
+    }
+
 let pre_patterns : (Re2.t * string) array =
   Array.map
     (fun (regex, template) -> (Re2.create_exn regex, template))
@@ -68,21 +104,8 @@ let instrument_file ?(skip = false) ~(includes : string list)
     Ok dst
   end
 
-let clang ~flags ~out file = Cmd.(v "clang" %% flags % "-o" % p out % p file)
-let opt file = Cmd.(v "opt" % "-O1" % "-o" % p file % p file)
-
-let llc ~bc ~obj =
-  let flags = Cmd.of_list [ "-O1"; "-march=wasm32"; "-filetype=obj"; "-o" ] in
-  Cmd.(v "llc" %% flags % p obj % p bc)
-
-let ld ~flags ~out files =
-  let libc = Share.get_libc () |> Option.get in
-  let files = List.fold_left (fun acc f -> Cmd.(acc % p f)) Cmd.empty files in
-  Cmd.(v "wasm-ld" %% flags % "-o" % p out %% files % libc)
-
-let wasm2wat ~out bin = Cmd.(v "wasm2wat" % "-o" % p out % p bin)
-
-let compile ~(includes : string list) ~(opt_lvl : string) (file : Fpath.t) =
+let compile ~(deps : deps) ~(includes : string list) ~(opt_lvl : string)
+  (file : Fpath.t) =
   Logs.app (fun m -> m "compiling %a" Fpath.pp file);
   let cflags =
     let includes = Cmd.of_list ~slip:"-I" includes in
@@ -104,12 +127,12 @@ let compile ~(includes : string list) ~(opt_lvl : string) (file : Fpath.t) =
   in
   let bc = Fpath.(file -+ ".bc") in
   let obj = Fpath.(file -+ ".o") in
-  let* () = OS.Cmd.run @@ clang ~flags:cflags ~out:bc file in
-  let* () = OS.Cmd.run @@ opt bc in
-  let* () = OS.Cmd.run @@ llc ~bc ~obj in
+  let* () = OS.Cmd.run @@ deps.clang ~flags:cflags ~out:bc file in
+  let* () = OS.Cmd.run @@ deps.opt bc in
+  let* () = OS.Cmd.run @@ deps.llc ~bc ~obj in
   Ok obj
 
-let link ~workspace (files : Fpath.t list) =
+let link ~deps ~workspace (files : Fpath.t list) =
   let ldflags ~entry =
     let stack_size = 8 * (1024 * 1024) in
     Cmd.(
@@ -118,8 +141,10 @@ let link ~workspace (files : Fpath.t list) =
   in
   let wasm = Fpath.(workspace / "a.out.wasm") in
   let wat = Fpath.(workspace / "a.out.wat") in
-  let* () = OS.Cmd.run @@ ld ~flags:(ldflags ~entry:"_start") ~out:wasm files in
-  let* () = OS.Cmd.run @@ wasm2wat ~out:wat wasm in
+  let* () =
+    OS.Cmd.run @@ deps.ld ~flags:(ldflags ~entry:"_start") ~out:wasm files
+  in
+  let* () = OS.Cmd.run @@ deps.wasm2wat ~out:wat wasm in
   Ok wat
 
 let cleanup dir =
@@ -141,12 +166,13 @@ let main debug testcomp output opt_lvl includes files =
   let workspace = Fpath.v output in
   let includes = Share.lib_location @ includes in
   let ret =
+    let* deps = check_dependencies () in
     let* _ = OS.Dir.create ~path:true workspace in
     (* skip instrumentation if not in test-comp mode *)
     let skip = not testcomp in
     let* files = list_map (instrument_file ~skip ~includes ~workspace) files in
-    let* objects = list_map (compile ~includes ~opt_lvl) files in
-    let* module_ = link ~workspace objects in
+    let* objects = list_map (compile ~deps ~includes ~opt_lvl) files in
+    let* module_ = link ~deps ~workspace objects in
     cleanup workspace;
     run ~workspace module_
   in
