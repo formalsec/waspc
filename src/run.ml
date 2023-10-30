@@ -82,7 +82,7 @@ let ld ~flags ~out files =
 
 let wasm2wat ~out bin = Cmd.(v "wasm2wat" % "-o" % p out % p bin)
 
-let compile (file : Fpath.t) ~(includes : string list) =
+let compile ~(includes : string list) ~(opt_lvl : string) (file : Fpath.t) =
   Logs.app (fun m -> m "compiling %a" Fpath.pp file);
   let cflags =
     let includes = Cmd.of_list ~slip:"-I" includes in
@@ -98,7 +98,8 @@ let compile (file : Fpath.t) ~(includes : string list) =
         ]
     in
     Cmd.(
-      of_list [ "-O1"; "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
+      of_list
+        [ "-O" ^ opt_lvl; "-g"; "-emit-llvm"; "--target=wasm32"; "-m32"; "-c" ]
       %% warnings %% includes )
   in
   let bc = Fpath.(file -+ ".bc") in
@@ -113,7 +114,7 @@ let link ~workspace (files : Fpath.t list) =
     let stack_size = 8 * (1024 * 1024) in
     Cmd.(
       of_list
-        [ "-z"; "stack-size=" ^ string_of_int stack_size; "--entry=" ^ entry ] )
+        [ "-z"; "stack-size=" ^ string_of_int stack_size; "--export=" ^ entry ] )
   in
   let wasm = Fpath.(workspace / "a.out.wasm") in
   let wat = Fpath.(workspace / "a.out.wat") in
@@ -135,16 +136,16 @@ let run ~workspace:_ file =
   Logs.app (fun m -> m "running %a" Fpath.pp file);
   Ok 0
 
-let main debug testcomp output includes files =
+let main debug testcomp output opt_lvl includes files =
   if debug then Logs.set_level (Some Debug);
   let workspace = Fpath.v output in
   let includes = Share.lib_location @ includes in
   let ret =
-    let* _ = OS.Dir.create workspace in
+    let* _ = OS.Dir.create ~path:true workspace in
     (* skip instrumentation if not in test-comp mode *)
     let skip = not testcomp in
     let* files = list_map (instrument_file ~skip ~includes ~workspace) files in
-    let* objects = list_map (compile ~includes) files in
+    let* objects = list_map (compile ~includes ~opt_lvl) files in
     let* module_ = link ~workspace objects in
     cleanup workspace;
     run ~workspace module_

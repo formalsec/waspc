@@ -13,13 +13,17 @@ let output =
   let doc = "write results to dir" in
   Arg.(value & opt string "owi-out" & info [ "output"; "o" ] ~doc)
 
+let opt_lvl =
+  let doc = "specify which optimization level to use" in
+  Arg.(value & opt string "0" & info [ "O" ] ~doc)
+
 let includes =
   let doc = "headers path" in
-  Arg.(value & opt_all string [] & info [ "I" ] ~doc)
+  Arg.(value & opt_all dir [] & info [ "I" ] ~doc)
 
 let files =
   let doc = "source files" in
-  Arg.(value & pos_all file [] & info [] ~doc)
+  Arg.(value & pos_all non_dir_file [] & info [] ~doc)
 
 let cli =
   let doc = "A C to Wasm Compiler to integrate with OWI" in
@@ -34,6 +38,7 @@ let cli =
   in
   let info = Cmd.info "owic" ~version:"test-comp24" ~doc ~man in
   Cmd.v info
-    Term.(const Run.main $ debug $ testcomp $ output $ includes $ files)
+    Term.(
+      const Run.main $ debug $ testcomp $ output $ opt_lvl $ includes $ files )
 
 let () = exit @@ Cmd.eval' cli
