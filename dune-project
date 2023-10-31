@@ -1,6 +1,7 @@
 (lang dune 3.0)
 
 (using dune_site 0.1)
+(using directory-targets 0.1)
 
 (name owic)
 

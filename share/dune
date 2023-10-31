@@ -14,6 +14,14 @@
  (files
   (py/instrumentor.py as instrumentor.py)))
 
+(rule
+ (deps (source_tree lib))
+ (targets (dir bin))
+ (action
+  (progn
+    (run mkdir -p bin)
+    (run make -C lib))))
+
 (install
  (package owic)
  (section
