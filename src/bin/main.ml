@@ -5,6 +5,14 @@ let debug =
   let doc = "debug mode" in
   Arg.(value & flag & info [ "debug" ] ~doc)
 
+let arch =
+  let doc = "data model" in
+  Arg.(value & opt int 32 & info [ "arch"; "m" ] ~doc)
+
+let property =
+  let doc = "property file" in
+  Arg.(value & opt (some string) None & info [ "property"; "p" ] ~doc)
+
 let testcomp =
   let doc = "test-comp mode" in
   Arg.(value & flag & info [ "testcomp" ] ~doc)
@@ -36,9 +44,10 @@ let cli =
     ; `P "Email them to TODO"
     ]
   in
-  let info = Cmd.info "owic" ~version:"test-comp24" ~doc ~man in
+  let info = Cmd.info "owic" ~version:"%%VERSION%%" ~doc ~man in
   Cmd.v info
     Term.(
-      const Run.main $ debug $ testcomp $ output $ opt_lvl $ includes $ files )
+      const Run.main $ debug $ arch $ property $ testcomp $ output $ opt_lvl
+      $ includes $ files )
 
 let () = exit @@ Cmd.eval' cli

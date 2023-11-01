@@ -1,4 +1,4 @@
 (library
  (name owic)
  (modules instrumentor run)
- (libraries re2 bos bos.setup pyml share))
+ (libraries re2 bos bos.setup pyml share xmlm sha))

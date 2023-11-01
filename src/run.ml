@@ -19,6 +19,12 @@ type deps =
   ; wasm2wat : out:Fpath.t -> Fpath.t -> Cmd.t
   }
 
+type metadata =
+  { arch : int
+  ; property : string option
+  ; files : string list
+  }
+
 let clang bin ~flags ~out file = Cmd.(bin %% flags % "-o" % p out % p file)
 let opt bin file = Cmd.(bin % "-O1" % "-o" % p file % p file)
 
@@ -161,19 +167,59 @@ let run ~workspace:_ file =
   Logs.app (fun m -> m "running %a" Fpath.pp file);
   Ok 0
 
-let main debug testcomp output opt_lvl includes files =
+let pp_tm fmt Unix.{ tm_year; tm_mon; tm_mday; tm_hour; tm_min; tm_sec; _ } =
+  Format.fprintf fmt "%04d-%02d-%02dT%02d:%02d:%02dZ" (tm_year + 1900) tm_mon
+    tm_mday tm_hour tm_min tm_sec
+
+let metadata ~workspace arch property files =
+  let out_metadata chan { arch; property; files } =
+    let o = Xmlm.make_output ~nl:true ~indent:(Some 2) (`Channel chan) in
+    let tag n = (("", n), []) in
+    let el n d = `El (tag n, [ `Data d ]) in
+    let* spec =
+      match property with None -> Ok "" | Some f -> OS.File.read @@ Fpath.v f
+    in
+    let file = String.concat ~sep:" " files in
+    let hash = Sha256.file file in
+    let time = Unix.time () |> Unix.localtime in
+    let test_metadata =
+      `El
+        ( tag "test-metadata"
+        , [ el "sourcecodelang" "C"
+          ; el "producer" "owic"
+          ; el "specification" (String.trim spec)
+          ; el "programfile" file
+          ; el "programhash" (Sha256.to_hex hash)
+          ; el "entryfunction" "main"
+          ; el "architecture" (Format.sprintf "%dbit" arch)
+          ; el "creationtime" (Format.asprintf "%a" pp_tm time)
+          ] )
+    in
+    let dtd =
+      "<!DOCTYPE test-metadata PUBLIC \"+//IDN sosy-lab.org//DTD test-format \
+       test-metadata 1.1//EN\" \
+       \"https://sosy-lab.org/test-format/test-metadata-1.1.dtd\">"
+    in
+    Xmlm.output o (`Dtd (Some dtd));
+    Xmlm.output_tree Fun.id o test_metadata;
+    Ok ()
+  in
+  let fpath = Fpath.(workspace / "metadata.xml") in
+  let* res = OS.File.with_oc fpath out_metadata { arch; property; files } in
+  res
+
+let main debug arch property testcomp output opt_lvl includes files =
   if debug then Logs.set_level (Some Debug);
   let workspace = Fpath.v output in
   let includes = Share.lib_location @ includes in
-  let ret =
-    let* deps = check_dependencies () in
-    let* _ = OS.Dir.create ~path:true workspace in
-    (* skip instrumentation if not in test-comp mode *)
-    let skip = not testcomp in
-    let* files = list_map (instrument_file ~skip ~includes ~workspace) files in
-    let* objects = list_map (compile ~deps ~includes ~opt_lvl) files in
-    let* module_ = link ~deps ~workspace objects in
-    cleanup workspace;
-    run ~workspace module_
-  in
-  Logs.on_error_msg ~level:Logs.Error ~use:(fun () -> 1) ret
+  (let* deps = check_dependencies () in
+   let* _ = OS.Dir.create ~path:true workspace in
+   (* skip instrumentation if not in test-comp mode *)
+   let skip = not testcomp in
+   let* nfiles = list_map (instrument_file ~skip ~includes ~workspace) files in
+   let* objects = list_map (compile ~deps ~includes ~opt_lvl) nfiles in
+   let* module_ = link ~deps ~workspace objects in
+   cleanup workspace;
+   let* () = metadata ~workspace arch property files in
+   run ~workspace module_ )
+  |> Logs.on_error_msg ~level:Logs.Error ~use:(fun _ -> 1)
