@@ -4,6 +4,7 @@
 (using directory-targets 0.1)
 
 (name owic)
+(version test-comp24)
 
 (generate_opam_files true)
 
@@ -20,5 +21,5 @@
  (name owic)
  (synopsis "TODO")
  (description "TODO")
- (depends ocaml dune re2 bos pyml cmdliner dune-site)
+ (depends ocaml dune re2 bos pyml cmdliner dune-site xmlm sha)
  (sites (share py) (share bin) (share lib)))

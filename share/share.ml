@@ -1,7 +1,5 @@
 let py_location = Share_site.Sites.py
-
 let bin_location = Share_site.Sites.bin
-
 let lib_location = Share_site.Sites.lib
 
 let find location file =

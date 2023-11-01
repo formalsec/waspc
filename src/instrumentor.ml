@@ -6,5 +6,6 @@ let instrument file includes =
   let kwargs =
     [ ("file", Py.String.of_string file)
     ; ("includes", Py.List.of_list @@ List.map Py.String.of_string includes)
-    ] in
+    ]
+  in
   ignore @@ Py.Callable.to_function_with_keywords callable [||] kwargs

@@ -10,29 +10,34 @@
 (install
  (package owic)
  (section
-  (site (owic py)))
+  (site
+   (owic py)))
  (files
   (py/instrumentor.py as instrumentor.py)))
 
 (rule
- (deps (source_tree lib))
- (targets (dir bin))
+ (deps
+  (source_tree lib))
+ (targets
+  (dir bin))
  (action
   (progn
-    (run mkdir -p bin)
-    (run make -C lib))))
+   (run mkdir -p bin)
+   (run make -C lib))))
 
 (install
  (package owic)
  (section
-  (site (owic bin)))
+  (site
+   (owic bin)))
  (files
   (bin/libc.wasm as libc.wasm)))
 
 (install
  (package owic)
  (section
-  (site (owic lib)))
+  (site
+   (owic lib)))
  (files
   (lib/include/netinet/in.h as netinet/in.h)
   (lib/include/sys/cdefs.h as sys/cdefs.h)
