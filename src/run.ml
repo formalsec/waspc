@@ -186,7 +186,7 @@ let metadata ~workspace arch property files =
       match property with None -> Ok "" | Some f -> OS.File.read @@ Fpath.v f
     in
     let file = String.concat ~sep:" " files in
-    let hash = Sha256.file file in
+    let hash = List.fold_left (fun _ f -> Sha256.file f) Sha256.zero files in
     let time = Unix.time () |> Unix.localtime in
     let test_metadata =
       `El
