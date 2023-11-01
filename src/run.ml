@@ -156,15 +156,21 @@ let link ~deps ~workspace (files : Fpath.t list) =
 let cleanup dir =
   OS.Path.fold ~elements:`Files
     (fun path _acc ->
-      if not (Fpath.has_ext ".wat" path || Fpath.has_ext ".wasm" path) then
+      if not @@ Fpath.has_ext ".wat" path then
         match OS.Path.delete path with
         | Ok () -> ()
         | Error (`Msg e) -> Logs.warn (fun m -> m "%s" e) )
     () [ dir ]
   |> Logs.on_error_msg ~level:Logs.Warning ~use:Fun.id
 
-let run ~workspace:_ file =
-  Logs.app (fun m -> m "running %a" Fpath.pp file);
+let owi ~workspace flags module_ =
+  let flags = Cmd.of_list flags in
+  Cmd.(v "owi" % "sym" % "--workspace" %% flags % p workspace % p module_)
+
+let run ~workspace module_ =
+  Logs.app (fun m -> m "running %a" Fpath.pp module_);
+  let workspace = Fpath.(workspace / "test-suite") in
+  let* () = OS.Cmd.run @@ owi ~workspace [] module_ in
   Ok 0
 
 let pp_tm fmt Unix.{ tm_year; tm_mon; tm_mday; tm_hour; tm_min; tm_sec; _ } =
