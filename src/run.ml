@@ -91,6 +91,7 @@ let copy ~src ~dst =
 let instrument_file ?(skip = false) ~(includes : string list)
   ~(workspace : Fpath.t) (file : string) =
   let file = Fpath.v file in
+  let file = if Fpath.has_ext ".i" file then Fpath.(file -+ ".c") else file in
   let dst = Fpath.(workspace // base file) in
   if skip then copy ~src:file ~dst
   else begin
