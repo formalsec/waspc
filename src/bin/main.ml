@@ -21,6 +21,10 @@ let output =
   let doc = "write results to dir" in
   Arg.(value & opt string "owi-out" & info [ "output"; "o" ] ~doc)
 
+let workers =
+  let doc = "number workers to use in owi" in
+  Arg.(value & opt int 8 & info [ "workers"; "w" ] ~doc)
+
 let opt_lvl =
   let doc = "specify which optimization level to use" in
   Arg.(value & opt string "0" & info [ "O" ] ~doc)
@@ -47,7 +51,7 @@ let cli =
   let info = Cmd.info "owic" ~version:"%%VERSION%%" ~doc ~man in
   Cmd.v info
     Term.(
-      const Run.main $ debug $ arch $ property $ testcomp $ output $ opt_lvl
-      $ includes $ files )
+      const Run.main $ debug $ arch $ property $ testcomp $ output $ workers
+      $ opt_lvl $ includes $ files )
 
 let () = exit @@ Cmd.eval' cli

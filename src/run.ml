@@ -163,14 +163,17 @@ let cleanup dir =
     () [ dir ]
   |> Logs.on_error_msg ~level:Logs.Warning ~use:Fun.id
 
-let owi ~workspace flags module_ =
+let owi ~workspace ~workers flags module_ =
   let flags = Cmd.of_list flags in
-  Cmd.(v "owi" % "sym" % "--workspace" %% flags % p workspace % p module_)
+  let w = string_of_int workers in
+  Cmd.(
+    v "owi" % "sym" % "-w" % w % "--workspace" %% flags % p workspace
+    % p module_ )
 
-let run ~workspace module_ =
+let run ~workspace ~workers module_ =
   Logs.app (fun m -> m "running %a" Fpath.pp module_);
   let workspace = Fpath.(workspace / "test-suite") in
-  let* () = OS.Cmd.run @@ owi ~workspace [] module_ in
+  let* () = OS.Cmd.run @@ owi ~workspace ~workers [] module_ in
   Ok 0
 
 let pp_tm fmt Unix.{ tm_year; tm_mon; tm_mday; tm_hour; tm_min; tm_sec; _ } =
@@ -214,7 +217,7 @@ let metadata ~workspace arch property files =
   let* res = OS.File.with_oc fpath out_metadata { arch; property; files } in
   res
 
-let main debug arch property testcomp output opt_lvl includes files =
+let main debug arch property testcomp output workers opt_lvl includes files =
   if debug then Logs.set_level (Some Debug);
   let workspace = Fpath.v output in
   let includes = Share.lib_location @ includes in
@@ -227,5 +230,5 @@ let main debug arch property testcomp output opt_lvl includes files =
    let* module_ = link ~deps ~workspace objects in
    cleanup workspace;
    let* () = metadata ~workspace arch property files in
-   run ~workspace module_ )
+   run ~workspace ~workers module_ )
   |> Logs.on_error_msg ~level:Logs.Error ~use:(fun _ -> 1)
