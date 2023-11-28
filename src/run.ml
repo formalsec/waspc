@@ -214,7 +214,8 @@ let metadata ~workspace arch property files =
     Xmlm.output_tree Fun.id o test_metadata;
     Ok ()
   in
-  let fpath = Fpath.(workspace / "metadata.xml") in
+  let fpath = Fpath.(workspace / "test-suite" / "metadata.xml") in
+  let* _ = OS.Dir.create ~path:true (Fpath.parent fpath) in
   let* res = OS.File.with_oc fpath out_metadata { arch; property; files } in
   res
 
