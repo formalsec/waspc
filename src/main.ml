@@ -1,4 +1,3 @@
-open Owic
 open Cmdliner
 
 let debug =

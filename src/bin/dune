@@ -1,5 +1,0 @@
-(executable
- (package owic)
- (public_name owic)
- (name main)
- (libraries owic cmdliner))
