@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.1//EN" "https://sosy-lab.org/test-format/test-metadata-1.1.dtd">
+<test-metadata>
+  <sourcecodelang>
+    C
+  </sourcecodelang>
+  <producer>
+    owic
+  </producer>
+  <specification>
+    
+  </specification>
+  <programfile>
+    examples/memory-safety/overflow.c
+  </programfile>
+  <programhash>
+    36a0778b824f6473d0f56a72e7b123130b4594326a38fec33e23d77715f3bbcf
+  </programhash>
+  <entryfunction>
+    main
+  </entryfunction>
+  <architecture>
+    32bit
+  </architecture>
+  <creationtime>
+    2023-11-10T10:54:01Z
+  </creationtime>
+</test-metadata>

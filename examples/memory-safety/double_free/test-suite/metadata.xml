@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.1//EN" "https://sosy-lab.org/test-format/test-metadata-1.1.dtd">
+<test-metadata>
+  <sourcecodelang>
+    C
+  </sourcecodelang>
+  <producer>
+    owic
+  </producer>
+  <specification>
+    
+  </specification>
+  <programfile>
+    examples/memory-safety/double_free.c
+  </programfile>
+  <programhash>
+    463fbe1473a664db9b1122976133eab0109a47267b06c2ab8698a2de00583b39
+  </programhash>
+  <entryfunction>
+    main
+  </entryfunction>
+  <architecture>
+    32bit
+  </architecture>
+  <creationtime>
+    2023-11-10T10:55:01Z
+  </creationtime>
+</test-metadata>
