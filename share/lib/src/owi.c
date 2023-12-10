@@ -19,7 +19,7 @@ __owi_assume(int);
 __attribute__((import_module("symbolic"), import_name("assert"))) void
 __owi_assert(int);
 
-void *owi_malloc(void *base, unsigned int size) { __owi_alloc(base, size); }
+void *owi_malloc(void *base, unsigned int size) { return __owi_alloc(base, size); }
 void owi_free(void *base) { __owi_dealloc(base); }
 
 int owi_i32() { return __i32(); }
