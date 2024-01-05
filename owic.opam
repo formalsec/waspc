@@ -37,3 +37,6 @@ build: [
   ["dune" "install" "-p" name "--create-install-files" name]
 ]
 dev-repo: "git+https://github.com/wasp-platform/waspc.git"
+depexts: [
+  ["llvm" "clang" "lld" "wabt"]  {os-family = "debian"}
+]
